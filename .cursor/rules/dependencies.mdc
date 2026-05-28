@@ -1,0 +1,23 @@
+---
+description: Dependency and framework management rules for the iOS project
+globs: ["project.yml", "Package.swift", "Package.resolved"]
+alwaysApply: false
+---
+
+# Dependency Management
+
+## Minimize Third-Party Dependencies
+- Use **Apple's native frameworks** wherever possible
+- Before adding a new dependency, evaluate:
+  1. Is this available natively in a supported iOS version?
+  2. Is the library actively maintained?
+  3. What is the binary size impact?
+
+## Adding / Upgrading Dependencies
+When a new Apple framework, SwiftPM package, generated Xcode project setting, or major version bump is introduced:
+1. Update `ai-context/dependency-map.md` with the library name, version, purpose, and owning feature
+2. Add an entry to `ai-context/change-log.md`
+3. Ensure generated project changes are represented in `project.yml` before regenerating `ImageSummarization.xcodeproj`
+
+## Security
+Do not add dependencies with known CVEs or that require disabling App Transport Security without documented justification.

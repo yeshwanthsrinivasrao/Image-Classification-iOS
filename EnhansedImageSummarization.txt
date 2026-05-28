@@ -1,0 +1,30 @@
+
+This is an enhansment file for the existing project 
+
+
+UI changes: 
+
+Create a new controller or content view which contain a button on click of that it loads the popup showing the camera, picker and cancel functionality.
+
+Based on the image, like if the image is a object then the an error is shown and if the image is a food/food product then the image should be shown with the data related to the food and if the image contain any text then the UI should be extracted text and summarised text and if it contain both food and text then the UI should be mixed of these two
+
+These screen should be maintained seperately from each other and should be maintained through navigations 
+
+Functionality :
+
+1. The path, structure will remains same, the change imclude in the functionality
+2. As of before the functionality works as to extract the text from the image and summarise the extracted text, but now
+3. First the image need to be detected whether the image is a food image or image contain any text or both
+	 - for image classification use the MobileNetV2 / MobileNetV3 or YOLO or Mask R-CNN any one need to use based on which is best
+
+4. If the image is a food image like apple, pasta or etc then use the USAD for the data and the calories are fetched and the detailed calories list is presented in bullet format
+5. If the image contains text then the text need to be verified weather it is a valid text or not Does this image contain meaningful structured information worth summarizing?
+For example :
+ -> If it is a screenshot which contains dummy data or non useful data then it can't     	be summarised 
+ -> if the image is a keyboard image then it can be summarised saying these are the 	alphabet, symbols like that 
+ -> if the texts not extracted then show error
+6. If it contains Both, then both need to be handled
+7. Find the related model files for the coreML
+8. We are using three approaches for text summarisation, the first approach which is using the inbuilt AI we have provided a prompt, improvise the prompt according to the above requirements
+
+9. add necessary API for calaries detection

@@ -1,0 +1,31 @@
+---
+description: SwiftUI adoption rules for new screens, MVVM separation, and async patterns
+globs:
+  ["ImageSummarization/Views/**/*.swift",
+   "ImageSummarization/ViewModels/**/*.swift",
+   "ImageSummarization/Services/**/*.swift"]
+alwaysApply: false
+---
+
+# SwiftUI Rules
+
+## New Screens: Prefer SwiftUI
+For any new screen or flow:
+- Implement the primary UI as a SwiftUI `struct` conforming to `View`
+- Use SwiftUI navigation, sheets, confirmation dialogs, alerts, and semantic colors
+- Keep result screens separate when requirements call for distinct Food, Text, Mixed, and Error screens
+
+## MVVM Separation of Concerns
+| Layer | Responsibility |
+|---|---|
+| **View** | Declarative, thin — layout and bindings only |
+| **ViewModel** | User-flow orchestration and UI state (`ObservableObject` + `@Published`, or `@Observable`) |
+| **Service** | OCR, ML inference, summarization, image classification, validation, nutrition lookup |
+
+## Async Work & Main-Thread Safety
+- Perform API calls, OCR, Core ML, Foundation Models, and heavy work **off** the main thread
+- Publish UI-facing state on the **main actor**:
+  - Use `.receive(on: DispatchQueue.main)` before mutating `@Published` properties (consistent with other Combine adopters in the project)
+  - Or prefer `async/await` with `@MainActor` for new features
+- Avoid blocking the main thread inside `View.body` or `onAppear`
+- Account for view identity, `.task` / `.onAppear` lifecycle, and **cancellation** when bindings or navigation state changes

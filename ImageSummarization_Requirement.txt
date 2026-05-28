@@ -1,0 +1,279 @@
+================================================================================
+iOS APPLICATION REQUIREMENTS ImageSummarization
+================================================================================
+
+PROJECT OVERVIEW
+----------------
+Create an iOS application that extracts text content present in an image,
+summarizes the extracted text using On-Device AI, and displays the summarized
+result to the user.
+ 
+--------------------------------------------------------------------------------
+ 
+PROJECT DETAILS
+---------------
+  Project Name   : ImageSummarization
+  Project Path   : /Users/yeshwanth.b/Documents/R&D/ImageSummarization
+  Minimum Target : iOS 16.0+
+  Language       : Swift
+  UI Framework   : SwiftUI
+  Architecture   : MVVM
+ 
+--------------------------------------------------------------------------------
+ 
+CORE FRAMEWORKS & TECHNOLOGIES
+--------------------------------
+  • SwiftUI              — UI layer
+  • Vision Framework     — On-device text recognition (OCR)
+  • VisionKit            — Image analysis & document scanning
+  • PhotosUI             — PHPickerViewController for gallery access (SwiftUI native)
+  • AVFoundation         — Camera capture support
+  • Core ML              — On-device AI model inference
+  • Apple Foundation     — Models framework (iOS 18+, where available)
+    Models Framework
+ 
+--------------------------------------------------------------------------------
+ 
+IMAGE PICKING & CAPTURING
+--------------------------
+  • Replace UIImagePickerController with SwiftUI-native alternatives:
+      - PHPickerViewController (wrapped via UIViewControllerRepresentable)
+        for gallery image selection.
+      - UIImagePickerController (wrapped via UIViewControllerRepresentable)
+        for live camera capture, or use the SwiftUI camera sheet approach.
+  • Present source selection via a SwiftUI confirmationDialog (ActionSheet),
+    giving the user the choice of:
+        1. Choose from Gallery
+        2. Capture from Camera
+ 
+--------------------------------------------------------------------------------
+ 
+TEXT EXTRACTION
+---------------
+  Framework : Vision Framework + VisionKit
+  API       : VNRecognizeTextRequest (async/await pattern)
+ 
+  Flow:
+    1. User selects or captures an image.
+    2. Image is passed to the ViewModel.
+    3. ViewModel runs VNRecognizeTextRequest asynchronously.
+    4. Extracted raw text is collected from VNRecognizedTextObservation results.
+    5. Raw text is passed to the On-Device AI summarization pipeline.
+ 
+--------------------------------------------------------------------------------
+ 
+ON-DEVICE AI SUMMARIZATION
+----------------------------
+  Approach  : On-device inference — fully private, no internet required.
+  Frameworks: Core ML + Apple Foundation Models (iOS 18+ where available)
+ 
+  Recommended Models (quantized for mobile):
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │  Model            │ Format        │ Notes                           │
+    ├─────────────────────────────────────────────────────────────────────┤
+    │  Phi-3 Mini       │ Core ML / GGUF│ Lightweight, good quality       │
+    │  Gemma 2B         │ Core ML       │ Strong summarization capability │
+    │  Mistral 7B (Q4)  │ Core ML / GGUF│ High quality, higher memory use │
+    └─────────────────────────────────────────────────────────────────────┘
+ 
+  Strategy:
+    • Primary   : Apple Foundation Models (iOS 18+) — native, optimized,
+                  no additional model bundling required.
+    • Fallback  : Core ML with a bundled quantized model (Phi-3 Mini or
+                  Gemma 2B recommended for memory efficiency).
+ 
+  Pros:
+    ✓ Full privacy — data never leaves the device
+    ✓ Offline support — works without network
+    ✓ No API costs
+ 
+  Cons:
+    ✗ Memory constraints on older devices
+    ✗ Slower inference compared to cloud APIs
+    ✗ More complex engineering / model management
+ 
+  Prompt Template (passed to the model):
+    "Summarize the following extracted text in a clear and concise manner:\n\n{extracted_text}"
+ 
+--------------------------------------------------------------------------------
+ 
+MVVM ARCHITECTURE
+------------------
+ 
+  Model
+  -----
+    • ImageTextModel.swift
+        - Properties: extractedText: String, summarizedText: String, error: String?
+ 
+  ViewModel
+  ---------
+    • ImageSummarizationViewModel.swift
+        - @Published var extractedText: String       ← raw OCR output
+        - @Published var summarizedText: String      ← AI summary output
+        - @Published var isProcessing: Bool
+        - @Published var errorMessage: String?
+        - func extractText(from image: UIImage) async
+        - func summarizeText(_ text: String) async
+        - Uses async/await + do-catch for error handling
+ 
+  Views (SwiftUI)
+  ---------------
+    • ContentView.swift           — Main entry view; hosts both text sections,
+                                    section titles, divider, and bottom button
+    • TextSectionView.swift       — Reusable component: renders a titled,
+                                    read-only text area (used for both
+                                    "Extracted Text" and "Summarized Text")
+    • ImageSourcePickerView.swift — confirmationDialog for source selection
+    • ProgressOverlayView.swift   — Full-screen progress indicator overlay
+ 
+--------------------------------------------------------------------------------
+ 
+UI / DESIGN REQUIREMENTS (SwiftUI)
+------------------------------------
+ 
+  Layout:
+    ┌──────────────────────────────────────┐
+    │           App Title / Header         │
+    ├──────────────────────────────────────┤
+    │                                      │
+    │   ScrollView (fills available space) │
+    │   └── VStack                         │
+    │       │                              │
+    │       ├── Section Title:             │
+    │       │   "Extracted Text"  ← Label  │
+    │       │   ┌────────────────────────┐ │
+    │       │   │ TextEditor / Text      │ │
+    │       │   │ (read-only, scrollable)│ │
+    │       │   │ Placeholder:           │ │
+    │       │   │ "Extracted text will   │ │
+    │       │   │  appear here..."       │ │
+    │       │   └────────────────────────┘ │
+    │       │                              │
+    │       ├── Divider                    │
+    │       │                              │
+    │       └── Section Title:             │
+    │           "Summarized Text" ← Label  │
+    │           ┌────────────────────────┐ │
+    │           │ TextEditor / Text      │ │
+    │           │ (read-only, scrollable)│ │
+    │           │ Placeholder:           │ │
+    │           │ "Summary will appear   │ │
+    │           │  here..."              │ │
+    │           └────────────────────────┘ │
+    │                                      │
+    ├──────────────────────────────────────┤
+    │   [ Select / Capture Image ]  ← Button (bottom, full-width)
+    └──────────────────────────────────────┘
+ 
+  Section Titles:
+    • Each section has a bold label styled with .font(.headline) or
+      .font(.title3).bold() above its corresponding text area.
+    • "Extracted Text"  — shown above the raw OCR output area.
+    • "Summarized Text" — shown above the AI-generated summary area.
+    • Both titles use a consistent color (e.g. Color(.label) or an accent color)
+      and are left-aligned within the ScrollView padding.
+ 
+  Text Display Areas:
+    • Both sections use TextEditor (read-only via .disabled(true)) or
+      a Text view wrapped in a RoundedRectangle background.
+    • Each text area has a minimum height (e.g. 150–200pt) and expands
+      with content, contained within the shared ScrollView.
+    • Placeholder text shown when content is empty (via ZStack overlay).
+    • Each text area visually separated with a subtle background fill:
+        Color(.secondarySystemBackground) with .cornerRadius(10).
+ 
+  Interactions:
+    1. Tap button → confirmationDialog appears with:
+         • "Choose from Gallery"
+         • "Capture from Camera"
+         • "Cancel"
+    2. User picks image → ProgressView (spinner + "Processing...") overlays screen.
+    3. OCR runs asynchronously (Vision Framework).
+       → On completion, "Extracted Text" section populates immediately.
+    4. On-Device AI summarization runs (Core ML / Foundation Models).
+       → On completion, progress indicator disappears and
+         "Summarized Text" section populates.
+    5. On error → Alert is shown with a clear error description.
+ 
+  SwiftUI Components:
+    • Text (section titles) styled with .font(.headline).bold()
+    • TextEditor / Text (read-only) for each output section
+    • Divider between the two sections
+    • ProgressView (indeterminate spinner) as a full-screen overlay
+    • .confirmationDialog for image source selection
+    • .alert for error presentation
+    • Button styled with .buttonStyle(.borderedProminent)
+ 
+--------------------------------------------------------------------------------
+ 
+PERMISSIONS — Info.plist
+--------------------------
+  Add the following keys to Info.plist:
+ 
+    NSCameraUsageDescription
+      → "This app requires camera access to capture images for text extraction."
+ 
+    NSPhotoLibraryUsageDescription
+      → "This app requires photo library access to select images for text extraction."
+ 
+    NSPhotoLibraryAddUsageDescription  (if saving images)
+      → "This app requires permission to save images to your photo library."
+ 
+--------------------------------------------------------------------------------
+ 
+ERROR HANDLING
+--------------
+  • All async operations wrapped in do-catch blocks.
+  • ViewModel exposes @Published var errorMessage: String?
+  • View observes errorMessage and presents a SwiftUI .alert on error.
+  • Specific cases handled:
+      - Camera/gallery permission denied
+      - No text found in image (Vision returns empty results)
+      - Core ML model unavailable or inference failure
+      - Apple Foundation Models unavailable (fallback triggered)
+ 
+--------------------------------------------------------------------------------
+ 
+ASYNC / CONCURRENCY
+--------------------
+  • Use Swift Concurrency (async/await) throughout.
+  • Vision text recognition runs on a background Task { }.
+  • Core ML inference runs on a background Task { } or actor-isolated context.
+  • UI updates dispatched to @MainActor.
+  • ViewModel marked with @MainActor where appropriate.
+ 
+--------------------------------------------------------------------------------
+ 
+APPLE STANDARDS & BEST PRACTICES
+-----------------------------------
+  • Follow Human Interface Guidelines (HIG) for SwiftUI layouts.
+  • Support Dynamic Type for accessibility.
+  • Support Dark Mode via semantic SwiftUI colors.
+  • No hardcoded colors — use Color(.systemBackground), Color(.label), etc.
+  • Localization-ready (use NSLocalizedString / String catalogs).
+  • All UI components accessible (accessibilityLabel, accessibilityHint).
+ 
+--------------------------------------------------------------------------------
+ 
+SUGGESTED FILE STRUCTURE
+--------------------------
+ 
+  ImageSummarization/
+  ├── App/
+  │   └── ImageSummarizationApp.swift
+  ├── Views/
+  │   ├── ContentView.swift
+  │   ├── TextSectionView.swift           (reusable titled text section component)
+  │   └── ProgressOverlayView.swift
+  ├── ViewModels/
+  │   └── ImageSummarizationViewModel.swift
+  ├── Models/
+  │   └── ImageTextModel.swift
+  ├── Services/
+  │   ├── TextExtractionService.swift     (Vision Framework logic)
+  │   └── SummarizationService.swift      (Core ML / Foundation Models logic)
+  ├── Utilities/
+  │   └── ImagePicker.swift               (UIViewControllerRepresentable wrappers)
+  ├── Resources/
+  │   └── MLModels/                       (bundled .mlpackage if using Core ML)
+  └── Info.plist

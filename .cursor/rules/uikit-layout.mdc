@@ -1,0 +1,29 @@
+---
+description: SwiftUI layout, Apple HIG, accessibility, and performance rules
+globs:
+  ["ImageSummarization/**/*.swift"]
+alwaysApply: false
+---
+
+# SwiftUI Layout Rules
+
+## SwiftUI Layout
+- Prefer SwiftUI layout primitives (`VStack`, `HStack`, `ZStack`, `ScrollView`, `NavigationStack`/`NavigationView`)
+- Use semantic colors and Dynamic Type-friendly fonts
+- Avoid fixed frames unless a clear UI requirement needs them
+- Keep reusable layout elements as focused `View` structs
+
+## State Binding
+Bind Views to `@State`, `@Binding`, `@StateObject`, `@ObservedObject`, or `@Environment` as appropriate. Keep business logic out of `View.body`.
+
+## Apple Human Interface Guidelines (HIG)
+All UI elements must comply with Apple's HIG:
+- Standard touch target sizes (≥ 44×44 pt)
+- System colors and Dynamic Type where applicable
+- Accessible labels on interactive elements
+- Support for Dark Mode via semantic colors
+
+## Performance
+- Minimize memory allocations in loops
+- Use background threads for image processing, network calls, and heavy computations
+- Profile with Instruments regularly; do not ship known regressions

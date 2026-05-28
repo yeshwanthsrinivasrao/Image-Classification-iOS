@@ -1,0 +1,577 @@
+================================================================================
+ENHANCED IMAGE SUMMARIZATION - FEATURE SPECIFICATION DOCUMENT
+================================================================================
+
+--------------------------------------------------------------------------------
+SECTION 1: OVERVIEW
+--------------------------------------------------------------------------------
+
+This document describes the enhancements to the existing Image Summarization
+project. The enhancement introduces intelligent image classification before
+summarization, supporting three content types: Food Images, Text-Based Images,
+and Mixed Content (Food + Text).
+
+Existing path and project structure remain unchanged. Only functionality and
+UI components are being extended.
+
+
+--------------------------------------------------------------------------------
+SECTION 2: UI CHANGES
+--------------------------------------------------------------------------------
+
+2.1 NEW ENTRY POINT — Image Picker Controller/View
+----------------------------------------------------
+  - Create a new Controller or Content View as the entry point.
+  - This view must contain a Button that, on tap, opens a Popup/Action Sheet.
+  - The Popup must include the following options:
+      a) Camera          — Capture a new image using the device camera
+      b) Photo Picker    — Select an image from the photo library
+      c) Cancel          — Dismiss the popup without selecting an image
+
+
+2.2 RESULT SCREENS (Based on Detected Image Content)
+------------------------------------------------------
+  Each detection result must be shown on its own separate screen and navigated
+  to independently. Screens must NOT share the same view.
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  Detection Result       │  Screen Behaviour                             │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │  Object (non-food,      │  Show an Error Screen with appropriate        │
+  │  non-text)              │  error message                                │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │  Food / Food Product    │  Show Food Detail Screen:                     │
+  │                         │   - Display selected/captured image           │
+  │                         │   - Show food name and nutritional data       │
+  │                         │   - Detailed calorie breakdown in             │
+  │                         │     bullet-point format                       │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │  Text Content           │  Show Text Summary Screen:                    │
+  │                         │   - Display extracted text                    │
+  │                         │   - Display summarised version of text        │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │  Food + Text (Mixed)    │  Show Mixed Content Screen:                   │
+  │                         │   - Combination of Food Detail Screen and     │
+  │                         │     Text Summary Screen in a single view      │
+  └─────────────────────────┴───────────────────────────────────────────────┘
+
+2.3 NAVIGATION
+---------------
+  - Each result screen (Food, Text, Mixed, Error) must be maintained separately.
+  - Navigation must be managed via the app's standard navigation mechanism
+    (e.g., UINavigationController push/pop or equivalent).
+
+
+--------------------------------------------------------------------------------
+SECTION 3: FUNCTIONAL CHANGES
+--------------------------------------------------------------------------------
+
+3.1 GENERAL NOTES
+------------------
+  - The overall file path and project structure remain unchanged.
+  - Only the functional logic is being extended/modified.
+  - Previously, the app extracted text from any image and summarised it.
+  - The new flow adds image classification as the first step before any
+    processing takes place.
+
+
+3.2 STEP-BY-STEP FUNCTIONAL FLOW
+----------------------------------
+
+  STEP 1 — IMAGE CLASSIFICATION
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  Classify the image into one of four categories:                        │
+  │    a) Food / Food Product                                               │
+  │    b) Text-Containing Image                                             │
+  │    c) Mixed (Food + Text)                                               │
+  │    d) Other Object (non-food, non-text)                                 │
+  │                                                                         │
+  │  DECIDED — ML Model: MobileNetV2                                        │
+  │    • File    : MobileNetV2.mlmodel (already downloaded)                 │
+  │    • Source  : developer.apple.com/machine-learning/models              │
+  │    • Type    : Image Classification (1000-class ImageNet labels)        │
+  │    • Input   : CVPixelBuffer — 224 × 224 px image                      │
+  │    • Output  : classLabel (String) + classLabelProbs (Dictionary)       │
+  │    • Why     : Lightweight, fast on-device inference, ships as a        │
+  │                ready-to-use .mlmodel with auto-generated Swift class.   │
+  │                                                                         │
+  │  Integration: Follow Section 5 of this document to add                 │
+  │               MobileNetV2.mlmodel into the Xcode project.              │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  STEP 2A — IF IMAGE IS FOOD
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  DECIDED — Calories API: USDA FoodData Central API                      │
+  │    • Endpoint : https://api.nal.usda.gov/fdc/v1/foods/search            │
+  │    • API Key  : Register free at https://fdc.nal.usda.gov/              │
+  │    • Docs     : https://fdc.nal.usda.gov/api-guide.html                 │
+  │                                                                         │
+  │  - Use MobileNetV2's classLabel output as the food search query         │
+  │    to the USDA API (e.g. classLabel = "Granny Smith" → search "apple"). │
+  │  - Map common MobileNetV2 food labels to clean USDA search terms        │
+  │    where needed (e.g. "carbonara" → "pasta carbonara").                 │
+  │  - Retrieve and display:                                                │
+  │      • Food item name                                                   │
+  │      • Total calories                                                   │
+  │      • Detailed calorie/nutrient breakdown (in bullet-point format)     │
+  │                                                                         │
+  │  DECIDED — Screen Layout: Image at the TOP                              │
+  │    ┌──────────────────────────────────────────────────────────────┐     │
+  │    │  [ Captured / Selected Image — full width at top ]           │     │
+  │    │  ────────────────────────────────────────────────────────    │     │
+  │    │  Food Detected : Apple                                        │     │
+  │    │  • Calories     : 95 kcal                                     │     │
+  │    │  • Carbohydrates: 25g                                         │     │
+  │    │  • Protein      : 0.5g                                        │     │
+  │    │  • Fat          : 0.3g                                        │     │
+  │    │  • Fibre        : 4.4g                                        │     │
+  │    │  ────────────────────────────────────────────────────────    │     │
+  │    │  [ Capture New Image Button ]                                 │     │
+  │    └──────────────────────────────────────────────────────────────┘     │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  STEP 2B — IF IMAGE CONTAINS TEXT
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  SUB-STEP B1 — OCR TEXT EXTRACTION                                      │
+  │    - Extract all visible text from the image using the device OCR       │
+  │      engine (e.g. Vision framework / VNRecognizeTextRequest).           │
+  │    - If extraction returns empty or nil → Show Error Screen with        │
+  │      message: "No text could be extracted from this image."             │
+  │    - If extraction succeeds → pass raw extracted text to B2.            │
+  │                                                                         │
+  │  SUB-STEP B2 — TEXT VALIDATION (Dummy / Placeholder Detection)         │
+  │    Purpose: Determine whether the extracted text is real, meaningful    │
+  │    content worth summarising, or dummy/placeholder/non-useful data.     │
+  │                                                                         │
+  │    Validation Rules (apply in order):                                   │
+  │                                                                         │
+  │    RULE 1 — Minimum Length Check                                        │
+  │      If word count < 10 → flag as TOO_SHORT                            │
+  │      Result: Show message "Not enough text to summarise."               │
+  │                                                                         │
+  │    RULE 2 — Dummy / Placeholder Pattern Detection                       │
+  │      Check for known dummy-text patterns:                               │
+  │        • "Lorem ipsum", "Dolor sit amet" or any lorem ipsum variant     │
+  │        • Repeated filler words (e.g. "test test test", "abc abc abc")   │
+  │        • Common placeholder strings: "Sample Text", "Your text here",   │
+  │          "Insert content", "Placeholder", "N/A", "TBD", "TODO"          │
+  │        • Auto-generated UI labels with no real data                     │
+  │          (e.g. "Title 1", "Label", "Button", "Cell")                    │
+  │      If matched → flag as DUMMY_CONTENT                                 │
+  │      Result: Show error "This image contains placeholder or dummy text  │
+  │              and cannot be summarised."                                 │
+  │                                                                         │
+  │    RULE 3 — Non-Language / Symbol-Only Content                         │
+  │      If extracted text consists entirely of:                            │
+  │        • Numbers only (e.g. "1 2 3 4 5 6 7 8 9 0")                    │
+  │        • Symbols/punctuation only (e.g. "! @ # $ % ^ & * ( )")         │
+  │        • Keyboard character layouts without contextual words            │
+  │      → flag as NON_LANGUAGE                                             │
+  │      Result: Show message "Image contains symbols or characters only.  │
+  │              No meaningful text to summarise."                          │
+  │                                                                         │
+  │    RULE 4 — PASS (Valid Content)                                        │
+  │      If none of the above rules are triggered, the text is considered   │
+  │      valid and is passed to SUB-STEP B3 for summarisation.              │
+  │                                                                         │
+  │    Validation Decision Flow:                                            │
+  │                                                                         │
+  │    [Extracted Text]                                                      │
+  │         │                                                               │
+  │         ├─ Empty / nil?          ──► Error: "Text extraction failed"    │
+  │         ├─ Word count < 10?      ──► Error: "Too short to summarise"    │
+  │         ├─ Dummy/placeholder?    ──► Error: "Dummy content detected"    │
+  │         ├─ Symbols/numbers only? ──► Error: "No meaningful language"    │
+  │         └─ All checks pass?      ──► Proceed to SUB-STEP B3            │
+  │                                                                         │
+  │  SUB-STEP B3 — TEXT SUMMARISATION (Three Approaches)                   │
+  │    All three approaches receive the same validated extracted text.      │
+  │    Each approach independently generates a summary.                     │
+  │    Final output displays BOTH sections to the user:                     │
+  │      ┌──────────────────────────────────────────────────────────────┐   │
+  │      │  EXTRACTED TEXT                                              │   │
+  │      │  ─────────────────────────────────────────────────────────  │   │
+  │      │  <Full raw text extracted from the image via OCR>           │   │
+  │      │                                                              │   │
+  │      │  SUMMARISED TEXT                                             │   │
+  │      │  ─────────────────────────────────────────────────────────  │   │
+  │      │  <Concise summary generated by the active approach>         │   │
+  │      │  ─────────────────────────────────────────────────────────  │   │
+  │      │  [ Capture New Image Button ]                                │   │
+  │      └──────────────────────────────────────────────────────────────┘   │
+  │                                                                         │
+  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+  │  APPROACH 1 — Inbuilt AI (On-device LLM / Apple Intelligence)          │
+  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+  │  Method : Pass extracted text to the inbuilt AI with an improved prompt │
+  │                                                                         │
+  │  IMPROVED PROMPT:                                                       │
+  │  ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │
+  │  "You are an intelligent text summarisation assistant.                  │
+  │   You will receive text that has already passed content validation      │
+  │   and has been confirmed as real, meaningful content.
+  │   Summarize the following extracted text in a clear and concise 
+      manner:\n\n%@.
+      
+  │                                                                         │
+  │   Your task:                                                            │
+  │   1. Read the provided text carefully.                                  │
+  │   2. Produce a clear, concise summary that:                             │
+  │        - Captures the key points and main intent of the content         │
+  │        - Is written in plain English, easy to understand                │
+  │        - Is between 3 to 6 sentences in length                         │
+  │        - Does NOT add information that is not in the original text      │
+  │        - Does NOT use bullet points — write in paragraph form           │
+  │   3. If the text is too ambiguous or insufficient to summarise          │
+  │      meaningfully even after validation, respond with exactly:          │
+  │      { 'summarisable': false,                                           │
+  │        'reason': '<one sentence explanation>' }                         │
+  │   4. If summarisation is possible, respond with exactly:                │
+  │      { 'summarisable': true,                                            │
+  │        'summary': '<your paragraph summary here>' }                     │
+  │                                                                         │
+  │   Always respond in valid JSON only. No preamble, no explanation,       │
+  │   no markdown formatting, no code blocks."                              │
+  │  ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │
+  │  On Success  : Parse JSON → display 'summary' value in the UI          │
+  │  On Failure  : If JSON is malformed or summarisable=false → show error  │
+  │                                                                         │
+  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+  │  APPROACH 2 — CoreML Abstractive Summarisation Model                   │
+  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+  │  Method : Use a bundled CoreML text summarisation model (.mlpackage)    │
+  │           to abstractively summarise the validated extracted text.      │
+  │                                                                         │
+  │  Model Used (Already Added):                                            │
+  │    • DistilBART-CNN-6-6 exported to CoreML                              │
+  │        Source : Hugging Face — sshleifer/distilbart-cnn-6-6             │
+  │        File   : DistilBARTSummariser.mlpackage (added to Xcode project) │
+  │    • Alternative: T5-small CoreML export (smaller model, faster)        │
+  │        Source: Hugging Face — search "t5-small coreml"                  │
+  │                                                                         │
+  │  Integration Steps:                                                     │
+  │    1. DistilBARTSummariser.mlpackage is already downloaded and added    │
+  │       to the Xcode project — no download or conversion required.        │
+  │    2. Use CoreML API to run inference:                                  │
+  │         - Input  : tokenised extracted text string                      │
+  │         - Output : decoded summary string                               │
+  │    3. Display the output summary in the UI                              │
+  │                                                                         │
+  │  Input Constraints:                                                     │
+  │    - Truncate input text to model's max token limit (typically 512–1024 │
+  │      tokens depending on the model chosen)                              │
+  │    - Pre-process: strip special characters, normalise whitespace        │
+  │                                                                         │
+  │  Fallback Behaviour (if model not yet bundled):                         │
+  │    → Fall back to Approach 3 (NaturalLanguage extractive summary)       │
+  │    → Log a warning: "CoreML summarisation model not found, falling      │
+  │      back to NaturalLanguage approach."                                 │
+  │                                                                         │
+  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─        │
+  │  APPROACH 3 — NaturalLanguage Framework (Extractive Summarisation)      │
+  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─        │
+  │  Method : Use Apple's NaturalLanguage framework to extract the most     │
+  │           important sentences from the validated text (extractive       │
+  │           summarisation — no new words are generated).                  │
+  │                                                                         │
+  │  Improvements to Existing Implementation:                               │
+  │                                                                         │
+  │  CHANGE 1 — Sentence Tokenisation                                       │
+  │    Use NLTokenizer with .sentence unit to split text into sentences     │
+  │    before scoring. Ensure punctuation and line breaks are handled.      │
+  │                                                                         │
+  │  CHANGE 2 — Sentence Scoring (TF-IDF Style Ranking)                     │
+  │    Current: Basic frequency count                                       │
+  │    Improved: Apply term-frequency weighting per sentence:               │
+  │      a) Tokenise each sentence into words using NLTokenizer (.word)     │
+  │      b) Remove stop words using NLTagger (.lexicalClass) — skip         │
+  │         pronouns, prepositions, articles, conjunctions                  │
+  │      c) Count meaningful word frequency across the full document        │
+  │      d) Score each sentence by the sum of its word frequencies          │
+  │      e) Normalise score by sentence length to avoid bias toward         │
+  │         longer sentences                                                │
+  │                                                                         │
+  │  CHANGE 3 — Summary Length Control                                      │
+  │    Select top N sentences where N = max(2, total_sentences * 0.3)       │
+  │    This ensures:                                                        │
+  │      • Short texts → at least 2 sentences extracted                    │
+  │      • Long texts → approx. 30% of content retained                    │
+  │                                                                         │
+  │  CHANGE 4 — Sentence Order Preservation                                │
+  │    After ranking, re-sort selected sentences by their original          │
+  │    position in the text before displaying (so the summary reads         │
+  │    in natural order, not by score order).                               │
+  │                                                                         │
+  │  CHANGE 5 — Language Detection Guard                                    │
+  │    Use NLLanguageRecognizer to detect the dominant language.            │
+  │    If language cannot be determined with confidence > 0.5:              │
+  │      → Show message: "Could not determine language. Summary may be      │
+  │        inaccurate." but still attempt summarisation.                    │
+  │    If language is confidently detected:                                 │
+  │      → Pass languageHint to NLTokenizer for more accurate tokenisation  │
+  │                                                                         │
+  │  Output: Plain string of extracted sentences joined with a space.       │
+  │  Display in the same Summarised Text section of the result screen.      │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  STEP 2C — IF IMAGE CONTAINS BOTH FOOD AND TEXT
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  - Handle both flows independently in parallel:                         │
+  │      • Run STEP 2A (Food Detection + USDA API call)                     │
+  │      • Run STEP 2B (Text Extraction + Validation + Summarisation)       │
+  │                                                                         │
+  │  DECIDED — Mixed Screen Layout: STACKED                                 │
+  │    ┌──────────────────────────────────────────────────────────────┐     │
+  │    │  [ Captured / Selected Image — full width at top ]           │     │
+  │    │  ────────────────────────────────────────────────────────    │     │
+  │    │  FOOD SECTION                                                 │     │
+  │    │  Food Detected : <food name>                                  │     │
+  │    │  • Calories     : xx kcal                                     │     │
+  │    │  • Carbohydrates: xxg                                         │     │
+  │    │  • Protein      : xxg                                         │     │
+  │    │  • Fat          : xxg                                         │     │
+  │    │  • Fibre        : xxg                                         │     │
+  │    │  ────────────────────────────────────────────────────────    │     │
+  │    │  TEXT SECTION                                                 │     │
+  │    │  EXTRACTED TEXT                                               │     │
+  │    │  <Full raw OCR text>                                          │     │
+  │    │  ────────────────────────────────────────────────────────    │     │
+  │    │  SUMMARISED TEXT                                              │     │
+  │    │  <Generated summary>                                          │     │
+  │    │  ────────────────────────────────────────────────────────    │     │
+  │    │  [ Capture New Image Button ]                                 │     │
+  │    └──────────────────────────────────────────────────────────────┘     │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  STEP 2D — IF IMAGE IS A GENERAL OBJECT
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  - Show an error screen with an appropriate message.                    │
+  │  - Example: "This image does not contain food or readable text.         │
+  │              Please try a different image."                             │
+  │    ┌──────────────────────────────────────────────────────────────┐     │
+  │    │  ⚠  This image does not contain food or readable text.       │     │
+  │    │     Please try a different image.                             │     │
+  │    │  ────────────────────────────────────────────────────────    │     │
+  │    │  [ Capture New Image Button ]                                 │     │
+  │    └──────────────────────────────────────────────────────────────┘     │
+  │                                                                         │
+  │  NOTE: The Capture New Image button must appear on ALL result screens   │
+  │  (Food, Text, Mixed, and Error) so the user can always restart the      │
+  │  flow without navigating back manually.                                 │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+
+--------------------------------------------------------------------------------
+SECTION 4: API & MODEL INTEGRATION
+--------------------------------------------------------------------------------
+
+4.1 CALORIE / NUTRITION API
+-----------------------------
+  DECIDED — USDA FoodData Central API
+  - Endpoint : https://api.nal.usda.gov/fdc/v1/foods/search
+  - API Key  : Register free at https://fdc.nal.usda.gov/
+  - Docs     : https://fdc.nal.usda.gov/api-guide.html
+  - The API must return:
+      • Food name
+      • Caloric value (kcal)
+      • Macronutrient breakdown (carbs, protein, fat, fibre, etc.)
+
+  Sample API Call:
+    GET https://api.nal.usda.gov/fdc/v1/foods/search
+        ?query=apple
+        &api_key=YOUR_API_KEY
+        &pageSize=1
+
+
+4.2 COREML MODEL FILES
+------------------------
+  CLASSIFICATION MODEL — DECIDED: MobileNetV2.mlmodel
+  - Already downloaded from developer.apple.com/machine-learning/models
+  - Follow Section 5 to integrate into the Xcode project.
+  - Input  : 224 × 224 CVPixelBuffer
+  - Output : classLabel (String), classLabelProbs (Dictionary<String, Double>)
+
+  SUMMARISATION MODEL — INTEGRATED: DistilBART-CNN (Already Added)
+  - Why DistilBART-CNN:
+      • Purpose-built for text summarisation (CNN/DailyMail trained)
+      • Produces abstractive, human-readable summaries
+      • Smaller than full BART while retaining strong summarisation quality
+      • Available as a CoreML export on Hugging Face
+
+  - Status: DistilBARTSummariser.mlpackage has already been downloaded,
+    converted, and added to the Xcode project. No further download or
+    conversion steps are required.
+
+  - Model Details:
+      Source    : sshleifer/distilbart-cnn-6-6 (Hugging Face)
+      File      : DistilBARTSummariser.mlpackage
+      Input     : input_ids (token IDs), attention_mask
+      Output    : Decoded summary string
+      Max Tokens: 512 (truncate input if longer)
+
+  - Integration: Follow Section 5 of this document for guidance on
+    verifying the model is correctly linked to the app target in Xcode.
+
+  - Alternative (lighter, faster): sshleifer/distilbart-cnn-12-3
+      Use if DistilBART-CNN-6-6 is too large for device storage constraints.
+
+
+4.3 SUMMARISATION APPROACH REFERENCE SUMMARY
+---------------------------------------------
+  ┌───────────────┬─────────────────────────┬────────────────────────────────┐
+  │  Approach     │  Technology             │  Type                          │
+  ├───────────────┼─────────────────────────┼────────────────────────────────┤
+  │  Approach 1   │  Inbuilt AI / On-device │  Abstractive (AI-generated)    │
+  │               │  Apple Intelligence LLM │  Prompt-driven JSON output     │
+  ├───────────────┼─────────────────────────┼────────────────────────────────┤
+  │  Approach 2   │  CoreML (.mlpackage)    │  Abstractive (model-generated) │
+  │               │  DistilBART-CNN-6-6     │  Token-in / string-out         │
+  │               │  (already added to      │  Fallback → Approach 3         │
+  │               │   Xcode project)        │                                │
+  ├───────────────┼─────────────────────────┼────────────────────────────────┤
+  │  Approach 3   │  NaturalLanguage        │  Extractive (sentence ranking) │
+  │               │  Framework (Apple)      │  TF-IDF scored, order-preserved│
+  └───────────────┴─────────────────────────┴────────────────────────────────┘
+
+  All three approaches share:
+    - The same validated extracted text as input
+    - The same UI output format (Extracted Text + Summarised Text sections)
+    - The same error handling path if summarisation fails
+
+
+--------------------------------------------------------------------------------
+SECTION 5: COREML MODEL INTEGRATION — STEP-BY-STEP GUIDE
+--------------------------------------------------------------------------------
+
+This section covers how to add the downloaded .mlmodel file from your Mac into
+the Xcode project correctly, so it is compiled, bundled, and accessible in code.
+
+  PRE-CONDITION:
+    • You have the .mlmodel file in your Mac's Downloads folder
+      (e.g. ~/Downloads/YourModelName.mlmodel)
+    • Your Xcode project has a dedicated Models (or Resources) folder
+
+
+  ── PHASE 1: COPY THE FILE INTO YOUR PROJECT FOLDER ──────────────────────────
+
+  STEP 1 — Open Finder
+    • Open Finder on your Mac.
+    • Navigate to: Downloads folder
+    • Locate your .mlmodel file (e.g. MobileNetV2.mlmodel)
+
+  STEP 2 — Copy to Project Directory
+    • Open a second Finder window and navigate to your Xcode project folder.
+    • Inside the project, open the Models (or Resources) folder.
+    • Drag and drop the .mlmodel file from Downloads into this folder.
+      NOTE: This copies the file into your project's source directory on disk.
+            Do NOT just reference it from Downloads — it must live inside the
+            project folder.
+
+
+  ── PHASE 2: ADD THE FILE TO XCODE ───────────────────────────────────────────
+
+  STEP 3 — Open Xcode and Locate the Models Folder
+    • Open your project in Xcode.
+    • In the Project Navigator (left sidebar), find your Models or Resources
+      group/folder.
+
+  STEP 4 — Add the File to Xcode Project
+    • Right-click on the Models folder in the Project Navigator.
+    • Select: "Add Files to <YourProjectName>..."
+    • In the file picker, navigate to where you copied the .mlmodel file.
+    • Select the .mlmodel file.
+    • In the options at the bottom of the dialog, ensure:
+        ✓ "Copy items if needed"              → CHECK this
+        ✓ "Add to targets: <YourAppTarget>"   → CHECK your main app target
+        ✓ "Create groups"                     → SELECT this (not folder references)
+    • Click Add.
+
+  STEP 5 — Verify the File Appears in Navigator
+    • The .mlmodel file should now appear inside the Models group in Xcode.
+    • Select the file and check the File Inspector (right panel):
+        - "Target Membership" must show your main app target is checked.
+        - If it is unchecked → check it manually.
+
+
+  ── PHASE 3: VERIFY XCODE AUTO-GENERATES THE SWIFT CLASS ─────────────────────
+
+  STEP 6 — Build the Project
+    • Press Cmd + B to build.
+    • Xcode automatically compiles the .mlmodel into a .mlmodelc (compiled
+      model) and generates a Swift class with the same name as the file.
+      Example: MobileNetV2.mlmodel → generates class MobileNetV2 in Swift.
+
+  STEP 7 — Confirm the Generated Class
+    • In the Project Navigator, expand the .mlmodel file (click the arrow).
+    • You should see a generated Swift file underneath it.
+    • Alternatively, use Cmd + Shift + O and search for the model class name
+      to confirm it exists and is accessible.
+    • If the class does NOT appear → clean build folder (Cmd + Shift + K)
+      and rebuild (Cmd + B).
+
+
+  ── PHASE 4: USE THE MODEL IN CODE ───────────────────────────────────────────
+
+  STEP 8 — Import CoreML and Initialise the Model
+    In the Swift file where classification/summarisation is performed:
+
+    import CoreML
+    import Vision   // only needed if using Vision wrapper for image models
+
+    // Initialise the model (replace 'YourModelName' with actual class name)
+    let model = try? YourModelName(configuration: MLModelConfiguration())
+
+  STEP 9 — For IMAGE CLASSIFICATION MODELS (MobileNet / YOLO)
+    Use the Vision framework wrapper for easier image input handling:
+
+    guard let model = try? VNCoreMLModel(for: YourModelName().model) else {
+        // Handle model load failure
+        return
+    }
+    let request = VNCoreMLRequest(model: model) { request, error in
+        guard let results = request.results as? [VNClassificationObservation],
+              let topResult = results.first else { return }
+        print("Label: \(topResult.identifier)")
+        print("Confidence: \(topResult.confidence)")
+    }
+    let handler = VNImageRequestHandler(cgImage: yourCGImage, options: [:])
+    try? handler.perform([request])
+
+  STEP 10 — For TEXT SUMMARISATION MODELS (CoreML NLP)
+    Pass tokenised text directly as MLFeatureProvider input:
+
+    guard let model = try? YourModelName(configuration: MLModelConfiguration()),
+          let input = try? MLDictionaryFeatureProvider(
+              dictionary: ["input_text": MLFeatureValue(string: extractedText)]
+          ) else { return }
+
+    let output = try? model.prediction(from: input)
+    let summary = output?.featureValue(for: "output_text")?.stringValue ?? ""
+
+    NOTE: The exact input/output feature names ("input_text", "output_text")
+          depend on the specific model. Check the model's feature description
+          in Xcode by selecting the .mlmodel file → viewing the Metadata tab.
+
+
+  ── PHASE 5: TROUBLESHOOTING ──────────────────────────────────────────────────
+
+  ┌──────────────────────────────────────┬────────────────────────────────────┐
+  │  Issue                               │  Fix                               │
+  ├──────────────────────────────────────┼────────────────────────────────────┤
+  │  Swift class not generated after     │  Clean Build Folder (Cmd+Shift+K)  │
+  │  adding the .mlmodel file            │  then rebuild (Cmd+B)              │
+  ├──────────────────────────────────────┼────────────────────────────────────┤
+  │  "No such module 'CoreML'" error     │  Ensure CoreML is linked under:    │
+  │                                      │  Target → General → Frameworks     │
+  ├──────────────────────────────────────┼────────────────────────────────────┤
+  │  Model loads but prediction crashes  │  Check input feature names match   │
+  │                                      │  exactly what the model expects    │
+  │                                      │  (view in .mlmodel Metadata tab)   │
+  ├──────────────────────────────────────┼────────────────────────────────────┤
+  │  Target membership unchecked         │  Select the .mlmodel in Navigator  │
+  │  (model not bundled in app)          │  → File Inspector → check target   │
+  ├──────────────────────────────────────┼────────────────────────────────────┤
+  │  App size too large after adding     │  Consider using on-demand resource  │
+  │  model                               │  or check model quantisation options│
+  └──────────────────────────────────────┴────────────────────────────────────┘
+

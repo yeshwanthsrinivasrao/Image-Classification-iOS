@@ -1,0 +1,18 @@
+---
+description: Rule for keeping .cursor/rules/*.mdc and ai-context/ aligned with the codebase as it evolves
+globs: ["**"]
+alwaysApply: true
+---
+
+# Self-Update Rule
+
+Whenever you complete a task that changes project-wide guidance, update the relevant `.cursorrules`, `.cursor/rules/*.mdc`, and/or `ai-context/` file **before finishing**.
+
+| Trigger | What to update |
+|---|---|
+| Add or change a reusable `Services`, `Utilities`, SwiftUI component, model asset, image classification flow, text validation rule, nutrition API integration, or summarization strategy used by more than one screen | Update the matching rule file and `ai-context/module-responsibilities.md` |
+| Add, remove, or upgrade Apple frameworks, SwiftPM packages, generated project settings, `Info.plist` permissions, or ML model resources | Update `ai-context/dependency-map.md` and `ai-context/change-log.md` |
+| Establish a new cross-cutting MVVM, navigation, privacy, concurrency, OCR, or ML pattern | Update `architecture.mdc` and `ai-context/architecture.md` |
+| Deprecate or replace an existing public type, service contract, app flow, model input/output shape, or API contract | Mark the old context entry as `DEPRECATED: YYYY-MM-DD — <reason>` and add the replacement |
+
+Keeping rules and `ai-context/` accurate ensures AI suggestions always match the current state of the ImageSummarization project.

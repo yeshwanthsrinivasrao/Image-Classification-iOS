@@ -1,0 +1,45 @@
+---
+description: SwiftUI MVVM architecture and architectural preservation rules
+globs: ["ImageSummarization/**"]
+alwaysApply: true
+---
+
+# Architecture Rules
+
+## MVVM / Service-Oriented Architecture
+Structure app code into clear folders:
+- **Views:** SwiftUI layout and bindings only
+- **ViewModels:** User-flow orchestration and UI-facing state
+- **Services:** OCR, summarization, image classification, text validation, nutrition lookup, and other reusable work
+- **Models:** Lightweight value types and Codable/API contracts
+- **Utilities:** Wrappers such as image pickers and shared helpers
+- **Resources:** `Info.plist`, ML models, and app resources
+
+Use dependency injection where it improves testability or avoids hidden coupling. Avoid singletons unless a platform API requires them.
+
+## Folder Layout
+Keep current app-wide modules in:
+```
+ImageSummarization/
+  App/
+  Views/
+  ViewModels/
+  Models/
+  Services/
+  Utilities/
+  Resources/MLModels/
+```
+For larger future features, create a feature folder only when it keeps related Views, ViewModels, Models, and Services easier to maintain.
+
+## Architectural Preservation
+- Before any change, perform a **dependency analysis** to identify all files, classes, and components that directly or indirectly depend on the modified code.
+- Perform a **complete end-to-end flow analysis** from UI → Domain → Data to understand the full scope.
+- Do not remove existing functionality used by other components without thorough impact analysis.
+- Limit changes to the specific feature or bug fix scope — do not modify unrelated components.
+- Ensure new code integrates with existing MVVM/Clean Architecture patterns and the established project structure.
+
+## AI Reasoning Checks (before proposing changes)
+1. **Architecture review** — analyze architectural impact
+2. **Dependency analysis** — check all dependents
+3. **Lifecycle management** — ensure lifecycle-awareness in SwiftUI Views and ViewModels
+4. **SwiftUI lifecycle** — account for view identity, `.task`/`.onAppear`, and cancellation when bindings or navigation change

@@ -1,0 +1,102 @@
+---
+description: Rules for maintaining ai-context/ directory and keeping project context in sync
+globs: ["**"]
+alwaysApply: true
+---
+
+# AI Context Maintenance (`ai-context/`)
+
+## Location & Bootstrap
+The `ai-context/` directory lives at the **project root** (same level as `.cursorrules` and `.cursor/`).
+
+On the **first substantive change** in a session, if `ai-context/` does not exist, create it and scaffold these files:
+
+| File | Section Headings |
+|---|---|
+| `architecture.md` | `## Layers` · `## Key types` · `## Core flows` · `## Cross-cutting concerns` · `## Decisions log` |
+| `dependency-map.md` | `## Apple frameworks` · `## XcodeGen / project.yml` · `## Top-level folders` · `## ML models and API dependencies` · `## App targets` |
+| `module-responsibilities.md` | `## App` · `## Views` · `## ViewModels` · `## Models` · `## Services` · `## Utilities` · `## Resources and MLModels` |
+| `change-log.md` | Reverse-chronological `## YYYY-MM-DD HH:MM — <short title>` entries |
+| `ai-summary.md` | `## Current project state` · `## Recent changes (last 10)` · `## Known risks` · `## Open follow-ups` |
+
+Never add other `ai-context/*.md` files without first extending this rule.
+
+## Session-Start Context Read
+Before proposing substantive changes (new screen flow, OCR behavior, summarization strategy, text validation rule, image classification flow, nutrition API integration, Codable/API contract, persistence key, new dependency, Info.plist permission, or ML model resource):
+1. Read `ai-context/ai-summary.md` if it exists
+2. If it contradicts the codebase or your plan, **reconcile before editing**
+
+Skipping this read when `ai-context/` exists makes the system write-only and unreliable.
+
+## When to Trigger a Context Refresh
+Refresh `ai-context/` when **any** of the following occur:
+- New or changed app flow, result screen, ViewModel, reusable Service, or Utility
+- New or changed OCR, text validation, summarization, image classification, or nutrition lookup behavior
+- New or changed ML model under `ImageSummarization/Resources/MLModels` or model input/output contract
+- New SwiftPM package, Apple framework dependency, `project.yml` build setting, target, or `Info.plist` permission
+- New persistence key or privacy/security behavior
+
+## Change Categorization
+Label work using these concrete areas (avoid vague labels):
+
+| Label | Scope |
+|---|---|
+| App entry and lifecycle | `ImageSummarization/App` |
+| SwiftUI Views and navigation | `ImageSummarization/Views` |
+| ViewModels and UI state | `ImageSummarization/ViewModels` |
+| Models and Codable/API contracts | `ImageSummarization/Models` |
+| Services | OCR, summarization, classification, validation, nutrition lookup |
+| Utilities | Image picker wrappers and shared helpers |
+| Resources | `Info.plist`, ML models, app resources |
+| Project settings | `project.yml`, `.xcodeproj` |
+
+## Impact Analysis Checklist
+For each non-trivial change, note:
+1. Views/ViewModels/Services importing or calling the changed type
+2. SwiftUI navigation or sheet/picker presentation paths affected
+3. Async work, actors, cancellation, and main-actor UI publishing
+4. `Info.plist` permissions, privacy, or secure configuration impact
+5. ML model files, generated classes, or model input/output contracts affected
+6. Network/API calls and error states affected
+7. Whether `.cursor/rules/*.mdc`, `.cursorrules`, or `ai-context/` need updates per `self_update_rule`
+
+## Merge Semantics (how to update context files)
+Updating `ai-context/` is **not blind append**:
+1. **DEDUP** — grep for an endpoint name, struct name, or key before adding; update in place if present
+2. **SECTION-SCOPED edits** — only replace the relevant `##` section
+3. **PRESERVE decisions** — never delete `architecture.md` Decisions log entries; add a superseding entry referencing the old one
+4. **IDEMPOTENCY** — repeating the same update must not duplicate bullets
+
+## Change-Log Entry Format
+Prepend to `ai-context/change-log.md`:
+```
+## YYYY-MM-DD HH:MM — <short title>
+### Files
+### Summary (WHY)
+### Impacted modules
+### Risk
+```
+Consolidate with the previous entry if it targets the same API/key/deeplink.
+When `change-log.md` exceeds ~500 lines, archive to `ai-context/history/change-log-YYYY-MM.md` and start fresh with a pointer.
+
+## `ai-summary.md` Maintenance
+On each context refresh:
+1. **Current project state** — ≤ 200 words
+2. **Recent changes** — last 10 change-log summaries only
+3. **Known risks** — HIGH items not yet verified
+4. **Open follow-ups** — with file paths
+
+Keep the file readable in under a minute.
+
+## Deprecation Over Deletion
+When removing an API endpoint, persistence key, ML model resource, model contract, public type, service method, validation rule, or app flow — mark the `ai-context` entry:
+```
+DEPRECATED: YYYY-MM-DD — <reason>
+```
+Never delete, so blame/older branches remain interpretable.
+
+## Relationship to `.cursor/rules/*.mdc`
+- `ai-context/` = **narrative state**; `.cursor/rules/*.mdc` = **enforceable rules**
+- When `self_update_rule` fires → also update `architecture.md` and `module-responsibilities.md`
+- If `ai-context` documents a pattern with no matching `.cursor` rule → **flag a rule gap to the user**
+- When `.cursor/rules/*.mdc` changes materially → prepend a `change-log.md` entry (category: Rules, Risk: Medium)

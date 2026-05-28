@@ -1,0 +1,51 @@
+---
+description: Swift language best practices, naming conventions, and code style
+globs: ["ImageSummarization/**/*.swift"]
+alwaysApply: false
+---
+
+# Swift Code Style
+
+## Language Best Practices
+- **Prefer structs over classes** unless reference semantics are explicitly required
+- **Prefer value types** over reference types for thread safety
+- **Avoid force unwrapping (`!`)** — use `guard let` or `if let` to handle optionals safely; force-unwrap only when absolutely certain and justified with a comment
+- **Avoid blocking the main thread** — network calls, DB operations, and heavy computations must run on background threads
+
+## Naming Conventions (Swift API Design Guidelines)
+| Scope | Convention |
+|---|---|
+| Properties & functions | `camelCase` |
+| Types (structs, classes, enums, protocols) | `PascalCase` |
+| JSON keys | `snake_case` |
+
+Function names must be expressive and clear.
+
+## Async / Concurrency
+- Avoid nested completion handlers
+- Use **Combine** or **structured concurrency (`async/await`)** for all async operations
+- Publish UI-facing state on the **main actor** — use `receive(on: DispatchQueue.main)` before mutating `@Published` properties, or annotate with `@MainActor` where appropriate
+- Avoid blocking the main thread in `View.body` or `onAppear`
+
+## SOLID & Error Handling
+- Follow **SOLID principles** in all modifications
+- Implement proper error handling — never swallow errors silently
+
+## Comments & Documentation
+- Preserve all existing documentation comments
+- Write clear inline comments for non-obvious logic
+
+## Formatting
+Use idiomatic Swift formatting and keep builds warning-free. Follow SwiftLint or SwiftFormat only if the project later adds configuration for them.
+
+## Project-Specific File Conventions
+| Purpose | File |
+|---|---|
+| SwiftUI screens | `ImageSummarization/Views` |
+| UI state and user-flow orchestration | `ImageSummarization/ViewModels` |
+| OCR, ML, validation, summarization, nutrition lookup | `ImageSummarization/Services` |
+| Lightweight value types and Codable/API contracts | `ImageSummarization/Models` |
+| Wrappers and shared helpers | `ImageSummarization/Utilities` |
+| ML models and model documentation | `ImageSummarization/Resources/MLModels` |
+| Project generation / build settings | `project.yml` |
+| Secrets / credentials | Keychain, build configuration, or platform-approved secure storage — never committed plaintext |

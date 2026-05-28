@@ -1,0 +1,30 @@
+
+
+Create a iOS application which extracts the content  present in an image and display.
+
+1. The main requirement is that when a user select a image from gallery or capture a live image the text content in the image should be extract.
+2. For image picking and capturing use the UIImagePickerController.
+3. Use Vision Framework and VisionKit for text Extraction.
+4. The extracted should to displayed in the application using a UITextView or UILabel.
+
+Creation of Project Path : 
+
+/Users/yeshwanth.b/Documents/R&D
+The above is the path where you need to create a new project, the name of the project is ImageSummarization
+
+Information on the development :
+
+1.The project should follow the Apple standard.
+2. Use the UIKit, Vision FrameWork, VisionKit and Swift as the Programming Language.
+3. Use the MVVM Architecture.
+4. Provide Required Permissions for the imagePicker in the info.plist.
+5. The minimum target is 13.0
+6. Use the error Handling and async.
+
+Design and Functionality requirements :
+
+1. Use a view controller for which contains a UITextView or UILabel to show the text and a button at the bottom of the Controller.
+2. When user click on the button a popup should display, the popup include whether to pick from gallery or capture from camera.
+3. Show the progress indicator when the image is being precessed.
+4. Once the text is extracted the progress indicator will disappear
+5. after the text is extracted it should be summarised using the On-Device AI and then display the summarised content to the textview
